@@ -72,18 +72,20 @@ export default function UsersScreen() {
   };
 
   const onEndReached = () => {
-    if (!loading && hasMore && query.trim() === "") {
+    if (!loading && hasMore) {
       load({ refresh: false });
     }
   };
 
-  const filtered = useMemo(() => {
-    if (!query) return users; // case-sensitive search
-    return users.filter((u) => {
-      const name = `${u.name.first} ${u.name.last}`;
-      return name.includes(query) || u.email.includes(query);
-    });
-  }, [users, query]);
+const filtered = useMemo(() => {
+  if (!query) return users;
+  const lowerQuery = query.toLowerCase();
+  return users.filter((u) => {
+    const name = `${u.name.first} ${u.name.last}`.toLowerCase();
+    const email = u.email.toLowerCase();
+    return name.includes(lowerQuery) || email.includes(lowerQuery);
+  });
+}, [users, query]);
 
   const renderItem = ({ item }: ListRenderItemInfo<User>) => {
     const fullName = `${item.name.first} ${item.name.last}`;
@@ -142,7 +144,7 @@ export default function UsersScreen() {
           onEndReached={onEndReached}
           onEndReachedThreshold={0.5}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListFooterComponent={loading && query.trim() === "" ? <ActivityIndicator style={{ margin: 12 }} /> : null}
+          ListFooterComponent={loading  ? <ActivityIndicator style={{ margin: 12 }} /> : null}
         />
       )}
     </View>
