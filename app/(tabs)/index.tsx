@@ -1,98 +1,162 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  ActivityIndicator,
+  TextInput,
+  RefreshControl,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  ListRenderItemInfo,
+} from "react-native";
+import axios from "axios";
+import { useRouter } from "expo-router";
+import { useTheme } from "../_layout";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const API_BASE = "https://randomuser.me/api/";
 
-export default function HomeScreen() {
+export default function UsersScreen() {
+  const router = useRouter();
+  const { theme, mode, setMode } = useTheme();
+
+  const [users, setUsers] = useState<User[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [hasMore, setHasMore] = useState(true);
+
+  const textColor = theme === "dark" ? "#fff" : "#000";
+  const subTextColor = theme === "dark" ? "#ddd" : "#444";
+
+  const fetchUsers = async (p = 1) => {
+    const res = await axios.get(`${API_BASE}?results=20&page=${p}`);
+    return res.data;
+  };
+
+  const load = async ({ refresh }: { refresh: boolean }) => {
+    try {
+      if (loading) return;
+      setLoading(true);
+      const p = refresh ? 1 : page;
+      const data = await fetchUsers(p);
+      const results: User[] = data.results;
+
+      if (refresh) {
+        setUsers(results);
+        setPage(2);
+      } else {
+        setUsers((prev) => [...prev, ...results]);
+        setPage((prev) => prev + 1);
+      }
+      setHasMore(results.length > 0);
+      setError(null);
+    } catch (e: any) {
+      setError(e.message ?? "Failed to fetch");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    load({ refresh: true });
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    load({ refresh: true });
+  };
+
+  const onEndReached = () => {
+    if (!loading && hasMore && query.trim() === "") {
+      load({ refresh: false });
+    }
+  };
+
+  const filtered = useMemo(() => {
+    if (!query) return users; // case-sensitive search
+    return users.filter((u) => {
+      const name = `${u.name.first} ${u.name.last}`;
+      return name.includes(query) || u.email.includes(query);
+    });
+  }, [users, query]);
+
+  const renderItem = ({ item }: ListRenderItemInfo<User>) => {
+    const fullName = `${item.name.first} ${item.name.last}`;
+    return (
+      <TouchableOpacity
+        style={styles.itemContainer}
+        onPress={() =>
+          router.push({
+            pathname: "/explore",
+            params: { user: JSON.stringify(item) },
+          })
+        }
+      >
+        <Image source={{ uri: item.picture.thumbnail }} style={styles.avatar} />
+        <View style={{ marginLeft: 12 }}>
+          <Text style={[styles.name, { color: textColor }]}>{fullName}</Text>
+          <Text style={[styles.email, { color: subTextColor }]}>{item.email}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const toggleTheme = async () => {
+    const next = mode === "dark" ? "light" : "dark";
+    await setMode(next as any);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <View style={[styles.container, { backgroundColor: theme === "dark" ? "#000" : "#fff" }]}>
+      <View style={styles.topRow}>
+        <TextInput
+          placeholder="Search by name or email"
+          placeholderTextColor={theme === "dark" ? "#aaa" : "#888"}
+          value={query}
+          onChangeText={setQuery}
+          style={[
+            styles.search,
+            { backgroundColor: theme === "dark" ? "#111" : "#f2f2f2", color: textColor },
+          ]}
+          autoCapitalize="none"
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+        <TouchableOpacity onPress={toggleTheme} style={styles.themeBtn}>
+          <Text style={{ fontWeight: "600", color: textColor }}>{mode === "dark" ? "Light" : "Dark"}</Text>
+        </TouchableOpacity>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {error ? (
+        <View style={styles.center}>
+          <Text style={{ color: textColor }}>Error: {error}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.login.uuid}
+          renderItem={renderItem}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.5}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListFooterComponent={loading && query.trim() === "" ? <ActivityIndicator style={{ margin: 12 }} /> : null}
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  container: { flex: 1, paddingTop: 8 },
+  topRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, marginBottom: 8 },
+  search: { flex: 1, padding: 10, borderRadius: 10 },
+  themeBtn: { marginLeft: 8, padding: 8 },
+  itemContainer: { flexDirection: "row", padding: 12, alignItems: "center", borderBottomWidth: 1, borderColor: "#eee" },
+  avatar: { width: 52, height: 52, borderRadius: 26 },
+  name: { fontSize: 16, fontWeight: "600" },
+  email: { fontSize: 13, color: "#666" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 });
