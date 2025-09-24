@@ -7,7 +7,10 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 1. Install dependencies
 
    ```bash
-   npm install
+   expo install expo-router react-native-safe-area-context @react-native-async-storage/async-storage
+   npm install axios
+# types
+   npm install -D typescript @types/react @types/react-native
    ```
 
 2. Start the app
@@ -34,6 +37,21 @@ npm run reset-project
 ```
 
 This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+
+## Feature
+
+  **User List Screen in index.tsx**
+    Displays a list of users fetched from [Random User API](https://randomuser.me/api/?results=20)
+    Shows user's name, profile picture (thumbnail), and email
+  **User Detail Screen in explore.tsx**
+    Displays full user details: full name, large profile picture, email, phone number, and location (city, country)
+  **Search Functionality**
+    Search users by name or email (case-insensitive)
+  **Bonus Features**
+    Pull-to-refresh user list
+    Infinite scrolling (load more users on scroll)
+    Dark mode toggle
+    Loading and error handling states
 
 ## Learn more
 
